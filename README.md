@@ -1,1 +1,192 @@
 # Exploring-BRFSS-Data
+The Behavioral Risk Factor Surveillance System (BRFSS) is the nation's premier system of health-related telephone surveys that collect state data about U.S. residents regarding their health-related risk behaviors, chronic health conditions, and use of preventive services.
+
+We use this dataset to explore correlation between certain risk factors
+
+**Research quesion 1:**
+Is there a correlation between having a healthplan and general health? Any difference between gender?
+
+**Research quesion 2:**
+Is there is any correlation between how much time a person sleeps and diagnose of diseases such as heart disease or stroke
+
+**Research quesion 3:**
+Is there any relationship between income level and educational level? 
+
+---
+title: "Exploring the BRFSS data"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+```
+
+### Load data
+
+
+```{r load-data}
+load("brfss2013.RData")
+```
+
+
+
+* * *
+
+## Part 1: Data
+1.Generalizability: since the survey is taken across all 50 states and other US territories, coordinated by the CDC with each state’s health agency, … - it should be enough to make random sample to make it generalizable to the US population.
+
+Causality: since the BRFSS is an observational exercise, meaning there is no explicit random assignments to treatments, all relationships indicate a correlation but not a causation.
+However, bias might exist due to the following reasons
+
+Method of data collection is by phone. Hence, it is possible that there is underreporting on those that:
+
+do not have a landline or mobile phone.
+
+do not respond to phone surveys.
+
+those who were not available to complete the survey (people who work/ preoccupied when the call was made )
+
+Since there is no sure way to validate all answers, respondents could provide untruthful answers (or understate/overstate)
+
+* * *
+
+## Part 2: Research questions
+
+**Research quesion 1:**
+Is there a correlation between having a healthplan and general health? Any difference between gender?
+
+**Research quesion 2:**
+Is there is any correlation between how much time a person sleeps and diagnose of diseases such as heart disease or stroke
+
+**Research quesion 3:**
+Is there any relationship between income level and educational level? 
+
+
+* * *
+
+## Part 3: Exploratory data analysis
+
+Is there a correlation between having a healthplan and general health? Any difference between gender?
+
+genhlth: General Health
+
+sex: Respondents Sex
+
+hlthpln1: Have Any Health Care Coverage
+
+Create a subset of data, omit all N/A
+
+Create a table
+
+Then plot the data.
+
+**Research quesion 1:**
+
+```{r}
+qq1 <- select(brfss2013,genhlth,sex,hlthpln1) %>% na.omit()
+dim(qq1)
+```
+```{r}
+View(qq1)
+prop.table(table(qq1$genhlth,qq1$hlthpln1),2)
+```
+```{r}
+g <- ggplot(qq1) + aes(x=hlthpln1,fill=genhlth) + geom_bar(position = "fill")
+g <- g + xlab("Have coverage") + ylab("Proportion") + scale_fill_discrete(name="Healthplan and general health")
+g
+```
+
+
+```{r}
+g <- ggplot(qq1) + aes(x=hlthpln1,fill=genhlth) + geom_bar(position = "fill") + facet_grid(.~sex)
+g <- g + xlab("Gen health per gender") + ylab("Proportion") + scale_fill_discrete(name="Sectioned by gender")
+g
+```
+Overall observation: people with health plan reports a lower ‘fair’ or ‘poor’ general health status.
+
+People with no health plan reports more ‘good’ health status than those with health plan.
+
+People with health plan reports a higher ‘excellent’ and ‘very good’ health status compare to those with no healthplan.
+
+There is no noticeable discrepancy when sectioned into gender.
+**Research quesion 2:**I wonder if there is any correlation between how much time a person sleeps and diagnose of diseases such as heart disease or stroke
+
+cvdcrhd4: Ever Diagnosed With Angina Or Coronary Heart Disease
+
+cvdstrk3: Ever Diagnosed With A Stroke
+
+sleptim1: How Much Time Do You Sleep
+
+Data have to be converted into numerical values.
+
+```{r}
+qq2 <- select(brfss2013,cvdcrhd4,cvdstrk3,sleptim1) 
+qq2_pop <- select(qq2,cvdcrhd4,cvdstrk3,sleptim1) %>% na.omit() %>% filter(sleptim1 <= 16)
+qq2_pop$cvdcrhd4 <- ifelse(qq2_pop$cvdcrhd4=="Yes", 1, 0)
+qq2_pop$cvdstrk3 <- ifelse(qq2_pop$cvdstrk3=="Yes", 1, 0)
+View(qq2_pop)
+cor(qq2_pop)
+```
+plotting correlation
+
+```{r}
+library(corrplot)
+```
+```{r}
+M <- cor(qq2_pop)
+corrplot(M, method="ellipse")
+```
+From the results:
+
+Sleep time and diagnosed with heart disease have a small negative correlation. It means that if one sleeps more, chances for heart disease is less.
+
+Sleep time and diagnosed with a stroke has a small positive correlation. It means that if one sleeps more, chances for stroke can be higher.
+
+**Research quesion 3:**Is there any relationship between income level and educational level?
+
+income2: income level
+
+educa: education level
+
+sex: respondent’s sex
+Create a subset, then filter out N/A values:
+
+```{r}
+qq3 <- select(brfss2013,educa,income2,sex)  %>%
+filter(!is.na(income2), !is.na(sex), !is.na(educa))
+```
+Present totals of variables being analyzed
+```{r}
+qq3 %>% group_by(income2) %>%    summarise(count=n())
+```
+```{r}
+qq3 %>% group_by(sex) %>%    summarise(count=n())
+```
+```{r}
+qq3 %>% group_by(educa) %>%    summarise(count=n())
+```
+
+plot
+```{r}
+ggplot(data = qq3, aes(x = educa , y = income2 ))+
+      geom_count () +
+    theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust=1))+
+    facet_grid(. ~  sex) +
+      xlab("educa: Education Level") +
+      ylab ("income2: Income Level")
+      scale_x_discrete(labels = function(x) str_wrap(x, width = 5))
+```
+There seems to be positive correlation between education level and income level. Very little people from the never attend school bracket actually achive over 75,000 while a 30,000 people from each sex can achieve the 75,000 and above bracket if they attend 4 years college.
+
+There is no noticeable discrepancy between the two sexes.
+
+Ideally, I would love to have another bracket, naming people who attend further studies after undergraduate schools and more upper-level income bracket (perhaps above 100,000, above 1M)
